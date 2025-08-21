@@ -7,8 +7,8 @@ if os.path.exists(".env"):
     load_dotenv(".env", override=True)
     print("成功加载环境变量配置")
 else:
-    print("未找到.env文件，请确保程序所需的环境变量被正确设置")
-    raise FileNotFoundError(".env 文件不存在，请创建并配置所需的环境变量")
+    # 在容器环境中，通常通过平台注入环境变量，无需 .env 文件
+    print("未找到 .env 文件，将直接使用容器环境变量继续启动")
 import sys
 import time
 import platform
