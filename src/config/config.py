@@ -114,7 +114,7 @@ def set_value_by_path(d, path, value):
         if k not in d or not isinstance(d[k], dict):
             d[k] = {}
         d = d[k]
-    
+
     # 使用 tomlkit.item 来保持 TOML 格式
     try:
         d[path[-1]] = tomlkit.item(value)
@@ -253,7 +253,7 @@ def _update_config_generic(config_name: str, template_name: str):
                         f"已自动将{config_name}配置 {'.'.join(path)} 的值从旧默认值 {old_default} 更新为新默认值 {new_default}"
                     )
                     config_updated = True
-            
+
             # 如果配置有更新，立即保存到文件
             if config_updated:
                 with open(old_config_path, "w", encoding="utf-8") as f:
@@ -328,6 +328,50 @@ def update_config():
     """更新bot_config.toml配置文件"""
     _update_config_generic("bot_config", "bot_config_template")
 
+
+
+
+def apply_model_env_overrides(mc: APIAdapterConfig) -> None:
+    """使用环境变量覆盖模型提供商配置，便于容器化平台通过环境变量注入密钥/地址。
+    支持（按名称/类型识别）：SiliconFlow、DeepSeek、OpenAI、Gemini/Google。
+    """
+    import os
+    for p in mc.api_providers:
+        name = (p.name or "").strip().lower()
+        # SiliconFlow
+        if name == "siliconflow":
+            if os.getenv("SILICONFLOW_KEY"):
+                p.api_key = os.getenv("SILICONFLOW_KEY") or p.api_key
+                logger.info("已使用环境变量覆盖 SiliconFlow API Key")
+            if os.getenv("SILICONFLOW_BASE_URL"):
+                p.base_url = os.getenv("SILICONFLOW_BASE_URL") or p.base_url
+                logger.info("已使用环境变量覆盖 SiliconFlow Base URL")
+        # DeepSeek（OpenAI 兼容客户端）
+        elif name == "deepseek":
+            if os.getenv("DEEPSEEK_KEY"):
+                p.api_key = os.getenv("DEEPSEEK_KEY") or p.api_key
+                logger.info("已使用环境变量覆盖 DeepSeek API Key")
+            if os.getenv("DEEPSEEK_BASE_URL"):
+                p.base_url = os.getenv("DEEPSEEK_BASE_URL") or p.base_url
+                logger.info("已使用环境变量覆盖 DeepSeek Base URL")
+        # OpenAI 兼容
+        elif name == "openai":
+            if os.getenv("OPENAI_API_KEY"):
+                p.api_key = os.getenv("OPENAI_API_KEY") or p.api_key
+                logger.info("已使用环境变量覆盖 OpenAI API Key")
+            if os.getenv("OPENAI_BASE_URL"):
+                p.base_url = os.getenv("OPENAI_BASE_URL") or p.base_url
+                logger.info("已使用环境变量覆盖 OpenAI Base URL")
+        # Google/Gemini 客户端
+        if p.client_type and p.client_type.strip().lower() == "gemini":
+            key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+            base = os.getenv("GOOGLE_BASE_URL") or os.getenv("GEMINI_BASE_URL")
+            if key:
+                p.api_key = key
+                logger.info("已使用环境变量覆盖 Google/Gemini API Key")
+            if base:
+                p.base_url = base
+                logger.info("已使用环境变量覆盖 Google/Gemini Base URL")
 
 def update_model_config():
     """更新model_config.toml配置文件"""
@@ -466,4 +510,9 @@ update_model_config()
 logger.info("正在品鉴配置文件...")
 global_config = load_config(config_path=os.path.join(CONFIG_DIR, "bot_config.toml"))
 model_config = api_ada_load_config(config_path=os.path.join(CONFIG_DIR, "model_config.toml"))
+# 环境变量覆盖模型提供商配置（容器环境下便于通过平台注入）
+try:
+    apply_model_env_overrides(model_config)
+except Exception as _e:
+    logger.warning(f"应用环境变量覆盖模型配置失败: {_e}")
 logger.info("非常的新鲜，非常的美味！")
