@@ -217,8 +217,8 @@ def _update_config_generic(config_name: str, template_name: str):
         os.makedirs(CONFIG_DIR, exist_ok=True)  # 创建文件夹
         shutil.copy2(template_path, old_config_path)  # 复制模板文件
         logger.info(f"已创建新{config_name}配置文件，请填写后重新运行: {old_config_path}")
-        # 新创建配置文件，退出
-        sys.exit(0)
+        # 新创建配置文件，继续运行（容器/非交互环境下无需人工确认）
+        return
 
     compare_config = None
     new_config = None
